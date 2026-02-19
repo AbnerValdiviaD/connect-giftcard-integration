@@ -4,6 +4,7 @@ import { paymentSDK } from '../src/payment-sdk';
 import { MockGiftCardService, MockGiftCardServiceOptions } from '../src/services/mock-giftcard.service';
 import { DefaultCartService } from '@commercetools/connect-payments-sdk/dist/commercetools/services/ct-cart.service';
 import { DefaultPaymentService } from '@commercetools/connect-payments-sdk/dist/commercetools/services/ct-payment.service';
+import { Payment } from '@commercetools/connect-payments-sdk';
 
 import { MockCustomError } from '../src/errors/mock-api.error';
 import * as Config from '../src/config/config';
@@ -109,7 +110,7 @@ describe('mock-giftcard.service', () => {
 
     // Assert
     await expect(result).rejects.toThrow(MockCustomError);
-    await expect(result).rejects.toThrowError('cart and gift card currency do not match');
+    await expect(result).rejects.toThrow('cart and gift card currency do not match');
   });
 
   test('When checking balance by inputting an expired gift card, it should throw error with Expired code', async () => {
@@ -120,7 +121,7 @@ describe('mock-giftcard.service', () => {
 
     // Assert
     await expect(result).rejects.toThrow(MockCustomError);
-    await expect(result).rejects.toThrowError('The gift card is expired.');
+    await expect(result).rejects.toThrow('The gift card is expired.');
   });
 
   test('When checking balance by inputting an erroneous gift card, it should throw error with GenericError code', async () => {
@@ -131,7 +132,7 @@ describe('mock-giftcard.service', () => {
 
     // Assert
     await expect(result).rejects.toThrow(MockCustomError);
-    await expect(result).rejects.toThrowError('Generic error occurs.');
+    await expect(result).rejects.toThrow('Generic error occurs.');
   });
 
   test('When checking balance by inputting a not supported error gift code, it should throw error with Invalid code', async () => {
@@ -142,7 +143,7 @@ describe('mock-giftcard.service', () => {
 
     // Assert
     await expect(result).rejects.toThrow(MockCustomError);
-    await expect(result).rejects.toThrowError('The code provided is invalid');
+    await expect(result).rejects.toThrow('The code provided is invalid');
   });
 
   test('When checking balance by inputting a not existing error gift code, it should throw error with NotFound code', async () => {
@@ -153,7 +154,7 @@ describe('mock-giftcard.service', () => {
 
     // Assert
     await expect(result).rejects.toThrow(MockCustomError);
-    await expect(result).rejects.toThrowError('The gift card code is not found.');
+    await expect(result).rejects.toThrow('The gift card code is not found.');
   });
 
   test('When redeeming a valid gift card, it should return Success as result', async () => {
@@ -175,10 +176,11 @@ describe('mock-giftcard.service', () => {
       },
     });
 
-    // Assert
+    // Assert - redeem now only authorizes (doesn't charge yet)
     expect(result.result).toStrictEqual('Success');
     expect(result.paymentReference).toStrictEqual('123456');
-    expect(result.redemptionId).toStrictEqual(`mock-connector-redemption-id-${dummyUUID}`);
+    // redemptionId is now the payment ID since actual redemption happens in capturePayment
+    expect(result.redemptionId).toStrictEqual(createPaymentResultOk.id);
   });
 
   test('when redeeming gift card with wrong currency, it should throw error with code CuurencyNotMatch', async () => {
@@ -227,9 +229,11 @@ describe('mock-giftcard.service', () => {
       },
     });
 
-    expect(result.result).toStrictEqual('Failure');
+    // redeem now only authorizes, so it returns Success
+    // Actual redemption failure would occur in capturePayment
+    expect(result.result).toStrictEqual('Success');
     expect(result.paymentReference).toStrictEqual('123456');
-    expect(result.redemptionId).toStrictEqual('');
+    expect(result.redemptionId).toStrictEqual(createPaymentResultOk.id);
   });
 
   test('it should throw a MockCustomError with Valid-00 to test a giftcard that passes balance but fails to redeem', async () => {
@@ -263,6 +267,7 @@ describe('mock-giftcard.service', () => {
   describe('modifyPayment', () => {
     test('capturePayment', async () => {
       // Given
+      setupMockConfig({ mockConnectorCurrency: 'USD' });
       const modifyPaymentOpts: ModifyPayment = {
         paymentId: 'dummy-paymentId',
         data: {
@@ -271,18 +276,26 @@ describe('mock-giftcard.service', () => {
               action: 'capturePayment',
               amount: {
                 centAmount: 1000,
-                currencyCode: 'EUR',
+                currencyCode: 'USD',
               },
             },
           ],
         },
       };
 
-      jest.spyOn(DefaultPaymentService.prototype, 'getPayment').mockResolvedValue(getPaymentResultOk);
+      // Create a payment with a valid gift card code in interfaceId
+      // This simulates the gift card code stored during the redeem phase
+      const paymentWithGiftCardCode: Payment = {
+        ...getPaymentResultOk,
+        interfaceId: 'Valid-1000-USD', // Valid gift card code format
+      };
+
+      jest.spyOn(DefaultPaymentService.prototype, 'getPayment').mockResolvedValue(paymentWithGiftCardCode);
       jest.spyOn(DefaultPaymentService.prototype, 'updatePayment').mockResolvedValue(updatePaymentResultOk);
 
-      const result = mockGiftCardService.modifyPayment(modifyPaymentOpts);
-      expect(result).rejects.toThrowError('operation not supported');
+      // capturePayment is now implemented and should succeed with valid gift card code
+      const result = await mockGiftCardService.modifyPayment(modifyPaymentOpts);
+      expect(result.outcome).toBe('approved');
     });
 
     test('cancelPayment', async () => {
@@ -302,7 +315,7 @@ describe('mock-giftcard.service', () => {
       jest.spyOn(DefaultPaymentService.prototype, 'updatePayment').mockResolvedValue(updatePaymentResultOk);
 
       const result = mockGiftCardService.modifyPayment(modifyPaymentOpts);
-      expect(result).rejects.toThrowError('operation not supported');
+      expect(result).rejects.toThrow('operation not supported');
     });
 
     test('refundPayment', async () => {

@@ -19,6 +19,7 @@ export const getCartOK = () => {
     taxMode: 'ExternalAmount',
     taxRoundingMode: 'HalfEven',
     taxCalculationMode: 'LineItemLevel',
+    priceRoundingMode: 'HalfEven',
     shipping: [],
     discountCodes: [],
     directDiscounts: [],

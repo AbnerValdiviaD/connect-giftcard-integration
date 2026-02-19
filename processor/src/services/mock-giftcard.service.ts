@@ -155,6 +155,7 @@ export class MockGiftCardService extends AbstractGiftCardService {
       });
     }
 
+    // Phase 1: Create payment and authorize (reserve funds, but don't charge yet)
     const ctPayment = await this.ctPaymentService.createPayment({
       amountPlanned: redeemAmount,
       paymentMethodInfo: {
@@ -181,24 +182,31 @@ export class MockGiftCardService extends AbstractGiftCardService {
       paymentId: ctPayment.id,
     });
 
-    const request: MockClientRedeemRequest = {
+    // Store gift card code in interfaceId so capturePayment can use it later
+    // Create Authorization transaction (not Charge - that happens in capturePayment)
+    const updatedPayment = await this.ctPaymentService.updatePayment({
+      id: ctPayment.id,
+      pspReference: redeemCode, // Store gift card code temporarily
+      transaction: {
+        type: 'Authorization', // Authorization, not Charge
+        amount: ctPayment.amountPlanned,
+        state: 'Success', // Authorization successful (funds reserved)
+      },
+    });
+
+    // Return success response (payment created but not charged yet)
+    // Create mock response matching MockClientRedeemResponse type
+    const mockRedemptionResult: MockClientRedeemResponse = {
+      resultCode: 'SUCCESS',
+      redemptionReference: ctPayment.id,
       code: redeemCode,
       amount: redeemAmount,
     };
 
-    const response: MockClientRedeemResponse = await MockAPI().redeem(request);
-
-    const updatedPayment = await this.ctPaymentService.updatePayment({
-      id: ctPayment.id,
-      pspReference: response.redemptionReference,
-      transaction: {
-        type: 'Charge',
-        amount: ctPayment.amountPlanned,
-        interactionId: response.redemptionReference,
-        state: this.redemptionConverter.convertMockClientResultCode(response.resultCode),
-      },
+    return this.redemptionConverter.convert({
+      redemptionResult: mockRedemptionResult,
+      createPaymentResult: updatedPayment,
     });
-    return this.redemptionConverter.convert({ redemptionResult: response, createPaymentResult: updatedPayment });
   }
 
   /**
@@ -211,12 +219,56 @@ export class MockGiftCardService extends AbstractGiftCardService {
    * @returns Promise with mocking data containing operation status and PSP reference
    */
   async capturePayment(request: CapturePaymentRequest): Promise<PaymentProviderModificationResponse> {
-    throw new ErrorGeneral('operation not supported', {
-      fields: {
-        pspReference: request.payment.interfaceId,
-      },
-      privateMessage: "connector doesn't support capture operation",
+    log.info(`Processing payment capture.`, {
+      paymentId: request.payment.id,
+      action: 'capturePayment',
     });
+
+    // Phase 2: Actually redeem the gift card (charge it)
+    // Get the gift card code from payment's interfaceId (stored in redeem phase)
+    const giftCardCode = request.payment.interfaceId;
+
+    if (!giftCardCode) {
+      throw new ErrorGeneral('Gift card code not found in payment', {
+        fields: {
+          paymentId: request.payment.id,
+        },
+        privateMessage: 'interfaceId should contain the gift card code',
+      });
+    }
+
+    // Redeem the gift card with external provider
+    const redeemRequest: MockClientRedeemRequest = {
+      code: giftCardCode,
+      amount: request.amount,
+    };
+
+    const redeemResponse: MockClientRedeemResponse = await MockAPI().redeem(redeemRequest);
+
+    // Update payment with redemption result
+    await this.ctPaymentService.updatePayment({
+      id: request.payment.id,
+      pspReference: redeemResponse.redemptionReference || redeemResponse.code, // Replace gift card code with redemption reference
+      transaction: {
+        type: 'Charge', // Now it's a Charge transaction
+        amount: request.amount,
+        interactionId: redeemResponse.redemptionReference,
+        state: this.redemptionConverter.convertMockClientResultCode(redeemResponse.resultCode),
+      },
+    });
+
+    log.info(`Payment capture completed.`, {
+      paymentId: request.payment.id,
+      action: 'capturePayment',
+      result: redeemResponse.resultCode,
+    });
+
+    return {
+      outcome: redeemResponse.resultCode === 'SUCCESS'
+        ? PaymentModificationStatus.APPROVED
+        : PaymentModificationStatus.REJECTED,
+      pspReference: redeemResponse.redemptionReference || redeemResponse.code,
+    };
   }
 
   /**
