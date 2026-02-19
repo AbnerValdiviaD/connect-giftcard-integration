@@ -2,6 +2,9 @@
   "name": "enabler",
   "version": "0.3.0",
   "type": "module",
+  "overrides": {
+    "minimatch": "10.2.1"
+  },
   "scripts": {
     "dev": "vite --port 3000",
     "start": "serve public -l 8080 --cors",
@@ -15,8 +18,8 @@
   "devDependencies": {
     "@types/node": "24.10.1",
     "jest": "30.2.0",
-    "sass": "1.95.1",
     "prettier": "^3.7.4",
+    "sass": "1.95.1",
     "ts-jest": "29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "5.9.3",
