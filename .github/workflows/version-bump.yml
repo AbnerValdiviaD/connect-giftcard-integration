@@ -1,6 +1,9 @@
 name: Auto Version Bump
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version_type:
@@ -47,8 +50,13 @@ jobs:
             VERSION=${LATEST_TAG#v}
             IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
-            # Increment based on input
-            case "${{ inputs.version_type }}" in
+            # Increment based on input (default to patch for automatic runs)
+            VERSION_TYPE="${{ inputs.version_type }}"
+            if [ -z "$VERSION_TYPE" ]; then
+              VERSION_TYPE="patch"
+            fi
+
+            case "$VERSION_TYPE" in
               patch)
                 PATCH=$((PATCH + 1))
                 ;;
