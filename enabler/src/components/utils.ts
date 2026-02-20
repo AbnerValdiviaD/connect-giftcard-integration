@@ -21,6 +21,20 @@ export const hideError = (field: string) => {
 
 export const fieldIds = {
   code: 'giftcard-code',
+  pin: 'giftcard-pin',
+  amount: 'giftcard-amount',
+  pinToggle: 'giftcard-pin-toggle',
+  loadBalance: 'giftcard-load-balance',
+  apply: 'giftcard-apply',
+  checkbox: 'giftcard-redeem-checkbox',
+  balanceDisplay: 'balance-display',
+  formContent: 'giftcard-form-content',
+  infoIcon: 'giftcard-info-icon',
+  infoTooltip: 'giftcard-info-tooltip',
+  balanceAmount: 'balance-amount',
+  codeError: 'giftcard-code-error',
+  pinError: 'giftcard-pin-error',
+  amountError: 'giftcard-amount-error',
 };
 
 const handleChangeEvent = (field: string, onValueChange?: (hasValue: boolean) => Promise<void>) => {
@@ -41,7 +55,9 @@ const handleChangeEvent = (field: string, onValueChange?: (hasValue: boolean) =>
 export const addFormFieldsEventListeners = (giftcardOptions: GiftCardOptions) => {
   handleChangeEvent(fieldIds.code, giftcardOptions?.onValueChange);
   handleChangeEvent(fieldIds.code, async () => hideError(fieldIds.code));
+  handleChangeEvent(fieldIds.pin, async () => hideError(fieldIds.pin));
   handleEnter(fieldIds.code, giftcardOptions?.onEnter);
+  handleEnter(fieldIds.pin, giftcardOptions?.onEnter);
 };
 
 type Res = {
