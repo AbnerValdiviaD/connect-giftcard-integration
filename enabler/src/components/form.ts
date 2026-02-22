@@ -337,17 +337,17 @@ export class FormComponent extends DefaultComponent {
         <div class="${inputFieldStyles.wrapper}">
           <div class="${inputFieldStyles.paymentForm}">
 
-            <!-- Checkbox (unchecked by default) -->
+            <!-- Checkbox (checked by default so SDK can see input field) -->
             <div class="${inputFieldStyles.checkboxContainer}">
-              <input type="checkbox" id="${fieldIds.checkbox}" />
+              <input type="checkbox" id="${fieldIds.checkbox}" checked />
               <label for="${fieldIds.checkbox}">${this.i18n.translate('redeemCheckboxLabel', this.baseOptions.locale)}</label>
             </div>
 
             <!-- Divider -->
             <hr class="${inputFieldStyles.divider}" />
 
-            <!-- Form content (hidden by default, shown when checkbox checked) -->
-            <div id="${fieldIds.formContent}" class="${inputFieldStyles.formContent} ${inputFieldStyles.hidden}">
+            <!-- Form content (visible by default since checkbox is checked) -->
+            <div id="${fieldIds.formContent}" class="${inputFieldStyles.formContent}">
 
               <!-- Section header with info icon -->
               <div class="${inputFieldStyles.sectionHeader}">
