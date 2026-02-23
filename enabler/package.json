@@ -18,12 +18,12 @@
   "devDependencies": {
     "@types/node": "24.10.1",
     "jest": "30.2.0",
-    "prettier": "^3.7.4",
-    "sass": "1.95.1",
+    "prettier": "^3.8.1",
+    "sass": "1.97.3",
     "ts-jest": "29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "5.9.3",
-    "vite": "7.2.7",
+    "vite": "7.3.1",
     "vite-plugin-css-injected-by-js": "3.5.2"
   },
   "dependencies": {
